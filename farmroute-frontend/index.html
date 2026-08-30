@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmRoute | Enterprise Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-emerald-500 selection:text-white">
+
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 text-emerald-400">
+                    <i data-lucide="sprout" class="w-6 h-6"></i>
+                </div>
+                <span class="font-bold text-lg tracking-tight">FarmRoute <span class="text-emerald-400 text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">PROD</span></span>
+            </div>
+            <div class="flex items-center space-x-2 text-sm text-slate-400">
+                <span id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                <span id="statusText">Connecting to Backend...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-12 w-full flex-grow grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <div class="md:col-span-1 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-semibold text-slate-200">Cloud Infrastructure</h2>
+                    <i data-lucide="server" class="w-5 h-5 text-emerald-400"></i>
+                </div>
+                <p class="text-xs text-slate-400 mb-6">Real-time health telemetry for your Render backend service instance.</p>
+                
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between py-2 border-b border-slate-800/60">
+                        <span class="text-slate-400">Environment</span>
+                        <span class="font-medium text-slate-200">Production</span>
+                    </div>
+                    <div class="flex justify-between py-2 border-b border-slate-800/60">
+                        <span class="text-slate-400">Host Provider</span>
+                        <span class="font-medium text-slate-200">Render Cloud</span>
+                    </div>
+                    <div class="flex justify-between py-2">
+                        <span class="text-slate-400">Target URL</span>
+                        <span class="font-mono text-xs text-emerald-400 truncate max-w-[150px]">farmroute-backend-lcj1.onrender.com</span>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="checkBackendHealth()" class="mt-8 w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium py-2.5 rounded-xl transition border border-slate-700 flex items-center justify-center space-x-2 text-sm">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                <span>Ping Server Health</span>
+            </button>
+        </div>
+
+        <div class="md:col-span-2 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-semibold text-slate-200">API Execution Console</h2>
+                    <i data-lucide="terminal" class="w-5 h-5 text-emerald-400"></i>
+                </div>
+                <p class="text-xs text-slate-400 mb-6">Trigger live REST endpoints hosted on your backend service.</p>
+
+                <div class="flex flex-wrap gap-3 mb-6">
+                    <button onclick="testRoute('/')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-xl text-xs transition flex items-center space-x-2">
+                        <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                        <span>GET / (Root)</span>
+                    </button>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-400 h-48 overflow-y-auto" id="consoleOutput">
+                    <span class="text-slate-500">// System ready. Click an endpoint above to execute payload response...</span>
+                </div>
+            </div>
+
+            <div class="mt-6 text-right text-xs text-slate-500">
+                FarmRoute Architecture v1.0.0
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
+        &copy; 2026 FarmRoute Technologies. All rights reserved.
+    </footer>
+
+    <script>
+        lucide.createIcons();
+        const BACKEND_URL = 'https://farmroute-backend-lcj1.onrender.com';
+
+        async function checkBackendHealth() {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            indicator.className = "w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse";
+            statusText.innerText = "Checking connection...";
+
+            try {
+                const res = await fetch(BACKEND_URL);
+                if (res.ok) {
+                    indicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]";
+                    statusText.innerText = "System Operational";
+                } else {
+                    throw new Error("Server responded with error status");
+                }
+            } catch (err) {
+                indicator.className = "w-2.5 h-2.5 rounded-full bg-rose-500";
+                statusText.innerText = "Connection Failed";
+            }
+        }
+
+        async function testRoute(endpoint) {
+            const output = document.getElementById('consoleOutput');
+            output.innerHTML += `\n> Fetching ${BACKEND_URL}${endpoint}...`;
+            output.scrollTop = output.scrollHeight;
+
+            try {
+                const response = await fetch(BACKEND_URL + endpoint);
+                const text = await response.text();
+                output.innerHTML += `\n<span class="text-emerald-300">[200 OK]:</span> ${text}`;
+            } catch (error) {
+                output.innerHTML += `\n<span class="text-rose-400">[ERROR]:</span> ${error.message}`;
+            }
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Run check on load
+        window.onload = checkBackendHealth;
+    </script>
+</body>
+</html>
