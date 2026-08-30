@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FarmRoute | Live Commodity Exchange</title>
+  
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --accent: #f59e0b;
+      --bg: #0b0f19;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --input-bg: #1e293b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background-color: var(--bg); color: var(--text-main); min-height: 100vh; padding-bottom: 60px; }
+
+    /* TICKER */
+    .ticker-wrap { background: #060911; border-bottom: 1px solid var(--card-border); overflow: hidden; white-space: nowrap; padding: 8px 0; font-size: 0.82rem; }
+    .ticker-move { display: inline-block; animation: ticker 25s linear infinite; }
+    .ticker-item { display: inline-flex; align-items: center; gap: 8px; margin-right: 32px; color: var(--text-muted); }
+    .ticker-price { font-weight: 700; color: white; }
+    .ticker-up { color: #10b981; font-weight: 600; }
+    .ticker-down { color: #ef4444; font-weight: 600; }
+    @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-50%, 0, 0); } }
+
+    /* NAVBAR */
+    header { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid var(--card-border); position: sticky; top: 0; z-index: 100; padding: 16px 0; }
+    .nav-container { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; }
+    .brand-title { font-size: 1.4rem; font-weight: 800; color: white; }
+
+    /* LAYOUT */
+    .dashboard-container { max-width: 1200px; margin: 30px auto 0 auto; padding: 0 24px; display: grid; grid-template-columns: 340px 1fr; gap: 32px; }
+    @media (max-width: 900px) { .dashboard-container { grid-template-columns: 1fr; } }
+
+    .glass-card { background: var(--card-bg); backdrop-filter: blur(16px); border: 1px solid var(--card-border); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .card-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; color: #ffffff; }
+
+    /* FILTERS & TABS */
+    .filter-section { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .search-input { width: 240px; background: var(--input-bg); border: 1px solid var(--card-border); padding: 8px 14px; border-radius: 8px; color: white; }
+    .category-pills { display: flex; gap: 8px; overflow-x: auto; }
+    .pill { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--text-muted); }
+    .pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .tab-bar { display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; }
+    .tab-btn { background: none; border: none; color: var(--text-muted); font-size: 0.95rem; font-weight: 700; cursor: pointer; padding: 6px 12px; border-radius: 6px; }
+    .tab-btn.active { color: var(--primary); background: rgba(16, 185, 129, 0.1); }
+
+    /* FORM & BUTTONS */
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    input, select { width: 100%; background: var(--input-bg); border: 1px solid var(--card-border); padding: 10px 14px; border-radius: 8px; color: white; font-size: 0.9rem; }
+    .btn { width: 100%; padding: 10px 16px; border-radius: 8px; border: none; font-weight: 700; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
+    .btn-paystack { background: #09a5db; color: white; margin-top: 8px; }
+
+    .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .stock-card { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+    .stock-img { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; }
+    .stock-title { font-size: 1rem; font-weight: 700; color: white; }
+    .stock-price { font-size: 1.25rem; font-weight: 800; color: var(--primary); margin: 4px 0; }
+  </style>
+</head>
+<body>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker-move" id="tickerContent"></div>
+  </div>
+
+  <!-- NAVBAR -->
+  <header>
+    <div class="nav-container">
+      <div class="brand">
+        <div class="brand-icon"><i data-lucide="sprout"></i></div>
+        <span class="brand-title">FarmRoute</span>
+      </div>
+      <div id="userInfo" style="display: flex; align-items: center; gap: 12px;">
+        <span id="userGreeting" style="font-size: 0.85rem; color: var(--text-muted);">Not logged in</span>
+        <button id="logoutBtn" class="btn btn-primary" style="display:none; width: auto; padding: 6px 12px; font-size: 0.8rem;" onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD -->
+  <div class="dashboard-container">
+    
+    <!-- LEFT PANEL: AUTH & POST -->
+    <div>
+      <div class="glass-card" id="loginCard">
+        <div class="card-title"><i data-lucide="lock"></i> Account Login</div>
+        <form id="loginForm">
+          <div class="form-group"><label>Email</label><input type="email" id="loginEmail" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="loginPassword" required></div>
+          <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
+        <p style="margin-top: 12px; font-size: 0.8rem; text-align: center; color: var(--text-muted);">
+          New user? <span style="color:var(--primary); cursor:pointer;" onclick="showRegister()">Register</span>
+        </p>
+      </div>
+
+      <div class="glass-card" id="registerCard" style="display: none;">
+        <div class="card-title"><i data-lucide="user-plus"></i> Create Account</div>
+        <form id="registerForm">
+          <div class="form-group"><label>Name</label><input type="text" id="regName" required></div>
+          <div class="form-group"><label>Email</label><input type="email" id="regEmail" required></div>
+          <div class="form-group"><label>Password</label><input type="password" id="regPassword" required></div>
+          <button type="submit" class="btn btn-primary">Register</button>
+        </form>
+        <p style="margin-top: 12px; font-size: 0.8rem; text-align: center; color: var(--text-muted);">
+          Have account? <span style="color:var(--primary); cursor:pointer;" onclick="showLogin()">Login</span>
+        </p>
+      </div>
+
+      <!-- BROADCAST LISTING FORM WITH IMAGE UPLOAD -->
+      <div class="glass-card" id="postItemCard" style="display: none;">
+        <div class="card-title"><i data-lucide="plus-circle"></i> List Produce</div>
+        <form id="itemForm" enctype="multipart/form-data">
+          <div class="form-group"><label>Title</label><input type="text" id="itemTitle" required></div>
+          <div class="form-group">
+            <label>Category</label>
+            <select id="itemCategory">
+              <option value="Grains">Grains</option>
+              <option value="Tubers">Tubers</option>
+              <option value="Cash Crops">Cash Crops</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Price (₦)</label><input type="number" id="itemPrice" required></div>
+          <div class="form-group">
+            <label>Quantity & Unit</label>
+            <div style="display:flex; gap:8px;">
+              <input type="number" id="itemQuantity" value="100" required>
+              <select id="itemUnit" style="width:90px;"><option value="bags">bags</option><option value="tons">tons</option><option value="kg">kg</option></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Produce Photo</label>
+            <input type="file" id="itemImage" accept="image/*">
+          </div>
+          <button type="submit" class="btn btn-primary">Broadcast Produce</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div>
+      <div class="glass-card">
+        <div class="tab-bar">
+          <button class="tab-btn active" id="tabFeed" onclick="switchTab('feed')"><i data-lucide="layout-grid"></i> Exchange Feed</button>
+        </div>
+
+        <div id="viewFeed">
+          <div class="filter-section">
+            <input type="text" class="search-input" id="searchInput" placeholder="Search crops..." oninput="fetchItems()">
+            <div class="category-pills">
+              <span class="pill active" onclick="filterCategory(this, 'All')">All</span>
+              <span class="pill" onclick="filterCategory(this, 'Grains')">Grains</span>
+              <span class="pill" onclick="filterCategory(this, 'Tubers')">Tubers</span>
+              <span class="pill" onclick="filterCategory(this, 'Cash Crops')">Cash Crops</span>
+            </div>
+          </div>
+          <div id="itemList" class="market-grid"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    lucide.createIcons();
+    const API_URL = '/api';
+    const socket = io();
+    let currentCategory = 'All';
+
+    socket.on('item_updated', () => fetchItems());
+
+    async function loadTicker() {
+      const res = await fetch(`${API_URL}/market-benchmarks`);
+      const data = await res.json();
+      const html = data.map(b => `
+        <div class="ticker-item"><span>${b.crop}:</span><span class="ticker-price">₦${b.price.toLocaleString()}</span><span class="${b.change.startsWith('+') ? 'ticker-up':'ticker-down'}">${b.change}</span></div>
+      `).join('');
+      document.getElementById('tickerContent').innerHTML = html + html;
+    }
+
+    function checkAuth() {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (token && user) {
+        document.getElementById('userGreeting').innerText = user.name;
+        document.getElementById('logoutBtn').style.display = 'block';
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('registerCard').style.display = 'none';
+        document.getElementById('postItemCard').style.display = 'block';
+      } else {
+        document.getElementById('userGreeting').innerText = 'Not logged in';
+        document.getElementById('logoutBtn').style.display = 'none';
+        document.getElementById('loginCard').style.display = 'block';
+        document.getElementById('postItemCard').style.display = 'none';
+      }
+    }
+
+    function showRegister() { document.getElementById('loginCard').style.display = 'none'; document.getElementById('registerCard').style.display = 'block'; }
+    function showLogin() { document.getElementById('registerCard').style.display = 'none'; document.getElementById('loginCard').style.display = 'block'; }
+    function logout() { localStorage.clear(); checkAuth(); fetchItems(); }
+
+    // LOGIN
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        checkAuth();
+        fetchItems();
+      } else {
+        alert(data.error || 'Login failed.');
+      }
+    });
+
+    // REGISTER
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('regName').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+
+      const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Account created successfully! Please log in.');
+        showLogin();
+      } else {
+        alert(data.error || 'Registration failed.');
+      }
+    });
+
+    // BROADCAST PRODUCE WITH IMAGE FILE
+    document.getElementById('itemForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = localStorage.getItem('token');
+      
+      const formData = new FormData();
+      formData.append('title', document.getElementById('itemTitle').value);
+      formData.append('category', document.getElementById('itemCategory').value);
+      formData.append('price', document.getElementById('itemPrice').value);
+      formData.append('quantity', document.getElementById('itemQuantity').value);
+      formData.append('unit', document.getElementById('itemUnit').value);
+      
+      const imageFile = document.getElementById('itemImage').files[0];
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+
+      const res = await fetch(`${API_URL}/items`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        alert('Produce broadcasted successfully!');
+        document.getElementById('itemForm').reset();
+        fetchItems();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Failed to list item.');
+      }
+    });
+
+    // PAYSTACK PAYMENT TRIGGER
+    function payWithPaystack(title, priceInNaira) {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) return alert('Please log in to purchase produce.');
+
+      const handler = PaystackPop.setup({
+        key: 'pk_test_YOUR_PAYSTACK_PUBLIC_KEY', // Replace with your Paystack key
+        email: user.email,
+        amount: priceInNaira * 100, // Kobo conversion
+        currency: 'NGN',
+        ref: 'FR_' + Math.floor((Math.random() * 1000000000) + 1),
+        callback: function(response) {
+          alert(`Payment Successful! Reference: ${response.reference}`);
+        },
+        onClose: function() {
+          alert('Transaction cancelled.');
+        }
+      });
+      handler.openIframe();
+    }
+
+    async function fetchItems() {
+      const search = document.getElementById('searchInput').value;
+      const res = await fetch(`${API_URL}/items?category=${currentCategory}&search=${search}`);
+      const items = await res.json();
+
+      document.getElementById('itemList').innerHTML = items.map(item => `
+        <div class="stock-card">
+          <img src="${item.image_url || 'https://images.unsplash.com/photo-1595246140625-573b715d11dc?w=500'}" class="stock-img" alt="${item.title}">
+          <div>
+            <div class="stock-title">${item.title}</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Seller: ${item.seller_name || 'Verified Farmer'}</div>
+            <div class="stock-price">₦${parseFloat(item.price).toLocaleString()} <span style="font-size:0.8rem; color:var(--text-muted);">/ ${item.unit}</span></div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Stock: ${item.quantity} ${item.unit}</div>
+            <button class="btn btn-paystack" onclick="payWithPaystack('${item.title}', ${item.price})">Buy Now</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterCategory(el, cat) {
+      document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      currentCategory = cat;
+      fetchItems();
+    }
+
+    loadTicker();
+    checkAuth();
+    fetchItems();
+  </script>
+</body>
+</html>
